@@ -7,7 +7,7 @@ sem instalar nada.
 
 ---
 
-## Para o cliente: instalar
+## Instalação
 
 1. No computador ligado ao som, dê dois cliques em **SoundpadSetup-2.0.exe** e avance.
    - Se aparecer "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo**.
