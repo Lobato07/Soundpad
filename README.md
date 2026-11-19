@@ -1,86 +1,97 @@
-# Soundpad da Loja
+# Soundpad 2.0
 
-Chamadas de áudio para repositores, vendedores e donos de veículos mal
-estacionados. O app roda no
-computador ligado à mesa de som; os outros computadores da loja apenas abrem
-uma página no navegador. Não precisa de Anydesk/RDP nem de instalar nada nos
-outros PCs.
+Chamadas por voz nas caixas de som: repositores, vendedor pelo nome e dono de
+veículo mal estacionado. O Soundpad roda em um computador ligado à mesa de som
+(ou às caixas). Os outros computadores da rede só abrem um endereço no navegador,
+sem instalar nada.
 
-## 1. Instalar (no computador da mesa de som)
+---
 
-Requisitos: Python 3.11, 3.12 ou 3.13 (o pygame ainda não funciona no 3.14+).
+## Para o cliente: instalar
 
-- **Windows:** dê dois cliques em `iniciar.bat` (cria o ambiente e instala tudo na primeira vez).
-- **Linux:** `./iniciar.sh`
+1. No computador ligado ao som, dê dois cliques em **SoundpadSetup-2.0.exe** e avance.
+   - Se aparecer "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo**.
+2. No fim, o Soundpad abre sozinho na página de **Ajustes**. Escolha:
+   - a **saída de som** e clique em **Tocar nas caixas de som** para testar;
+   - a **voz** e a **velocidade** (botão **Ouvir aqui**);
+   - os **locais** (Caixa, Pacote, Balcão…) e quantos caixas existem;
+   - as **chamadas** (dá para criar novas, como Segurança, Açougue ou um aviso de fechamento).
+3. Clique em **Salvar**.
+4. Nos outros computadores, abra o endereço que aparece em **Acesso pelos outros
+   computadores** (ex.: `http://192.168.0.20:5000`) e salve nos favoritos.
 
-## 2. Gerar os áudios
+O instalador já cria o atalho, liga o Soundpad junto com o Windows e libera o
+firewall. Para o endereço não mudar, reserve o IP do computador no roteador.
 
-Com o ambiente ativo (`.venv`), rode uma vez:
+Os Ajustes abrem sem senha só no próprio computador do som. Para abrir de outro
+computador, crie uma senha em Ajustes → Acesso.
 
-```
-python gerar_falas.py                  # voz neural pt-BR (precisa de internet só nessa hora)
-python gerar_falas.py --motor offline  # voz do sistema, sem internet (requer: pip install pyttsx3)
-```
+---
 
-Isso cria na pasta `audios/` as chamadas de repositores:
-`repositores_caixa_1` … `repositores_caixa_5` e `repositores_pacote`.
-Com eles prontos, a chamada de repositores funciona mesmo sem internet.
+## Para você (quem vende): gerar o instalador
 
-Para usar **gravações próprias**, coloque arquivos com esses mesmos nomes
-(`.mp3`, `.wav` ou `.ogg`). Se houver mais de uma versão (ex.:
-`repositores_caixa_3.mp3` e `repositores_caixa_3_b.mp3`), o app sorteia uma delas.
-
-As chamadas de **vendedor** e de **veículo** mudam a cada vez, por isso o app
-gera a fala na hora em que o operador aperta Chamar. **Precisa de internet**
-no PC da mesa de som. Cada fala gerada fica guardada em `audios/cache`, e
-repetir a mesma chamada não gera de novo.
-
-Para mudar os textos, edite `frases.py` (e rode `gerar_falas.py` de novo para os repositores).
-### Voz e velocidade
-
-No `config.json`:
-
-- `"voz"`: a voz usada (padrão `pt-BR-ThalitaMultilingualNeural`). Se ela falhar, o app usa `"voz_reserva"`.
-- `"velocidade"`: `"-10%"` fala 10% mais devagar; `"-15%"` mais devagar ainda; `"+0%"` é o normal.
-
-Para escolher a voz de ouvido, rode `python gerar_falas.py --amostras`. Isso cria em
-`audios/amostras/` um arquivo com cada voz pt-BR disponível. Coloque o nome do
-arquivo escolhido (sem `.mp3`) em `"voz"`, rode `python gerar_falas.py` de novo e
-reinicie o app.
-
-## 3. Escolher a saída de áudio (mesa de som)
+No seu computador, com Python 3.13 (`py install 3.13`) e o
+[Inno Setup 6](https://jrsoftware.org/isdl.php) (`winget install JRSoftware.InnoSetup`):
 
 ```
-python app.py --dispositivos
+instalador\construir.bat
 ```
 
-Copie o nome (ou um trecho) da saída ligada à mesa de som para
-`"dispositivo_audio"` no `config.json`. Vazio = saída padrão do sistema.
+Ele cria `instalador\saida\SoundpadSetup-2.0.exe`. É esse arquivo que vai para o
+cliente. O cliente não precisa de Python nem de nada além dele.
 
-## 4. Acessar dos outros computadores
+Para lançar uma versão nova, mude `VERSAO` em `ajustes.py` e `Versao` em
+`instalador\soundpad.iss`, e rode `construir.bat` de novo. Instalar por cima
+mantém os ajustes do cliente.
 
-1. Descubra o IP do PC da mesa de som (`ipconfig` no Windows, `hostname -I` no Linux), p. ex. `192.168.0.20`.
-2. Nos outros PCs, abra no navegador: **`http://192.168.0.20:5000`**
-3. Dica: salve nos favoritos ou crie um atalho na área de trabalho.
+### Antes de vender
 
-Para funcionar de forma estável:
+- **Serviço de voz.** O padrão ("Microsoft Edge, gratuito") usa o serviço de
+  leitura em voz alta do navegador Edge, que a Microsoft não oferece oficialmente
+  para outros programas. Ele pode parar ou mudar sem aviso, e não há contrato de
+  uso comercial. Para vender com segurança, use o **Azure Speech** (mesmas vozes,
+  oficial, com camada gratuita mensal e depois pago por uso). Crie um recurso
+  "Speech" no portal do Azure e coloque a chave e a região nos Ajustes.
+- **Aviso do Windows.** Sem assinatura digital de código, o Windows mostra
+  "O Windows protegeu o computador" na instalação. Um certificado de assinatura
+  de código remove esse aviso.
+- **Ícone.** Confira se você tem direito de uso comercial da imagem do ícone
+  (`instalador\icone.ico` e `static\icone.png`), ou troque-a por uma própria.
 
-- **IP fixo:** reserve o IP do PC da mesa de som no roteador (reserva DHCP), senão o endereço pode mudar.
-- **Firewall (Windows)**, em um prompt como administrador:
-  `netsh advfirewall firewall add rule name="Soundpad" dir=in action=allow protocol=TCP localport=5000`
-- **Firewall (Ubuntu):** `sudo ufw allow 5000/tcp`
-- **Iniciar com o Windows:** `Win+R` → `shell:startup` → coloque um atalho para o `iniciar.bat`.
-- Mantenha o PC sem suspensão automática.
-
-> Não exponha a porta 5000 na internet (sem redirecionamento de porta no roteador).
-> O app não tem login: use apenas dentro da rede da loja.
+---
 
 ## Como funciona
 
-- **Repositores:** escolha Caixa (e o número) ou Pacote.
-- **Vendedor:** digite o nome e escolha Caixa (e o número) ou Pacote.
-- **Veículo:** digite modelo, cor e placa (7 letras e números, com ou sem hífen). A placa é lida letra por letra.
-- A mensagem aparece na tela e só toca ao apertar **Chamar** (evita anúncio por clique acidental).
-- Chamadas simultâneas entram em **fila** e tocam uma depois da outra, sem se cortarem.
-  A mesma chamada repetida enquanto ainda está na fila é ignorada.
-- **Parar áudio** interrompe o que está tocando e limpa a fila.
+- Cada chamada cadastrada nos Ajustes vira um botão no painel. Ao criar uma, o cliente
+  escolhe o tipo:
+  - **Grupo para um local** (como Repositores): o operador escolhe o local. Frase com `{local}`.
+  - **Pessoa pelo nome** (como Vendedor): digita o nome e escolhe o local. Frase com `{nome}` e `{local}`.
+  - **Veículo**: digita modelo, cor e placa. Frase com `{modelo}`, `{cor}` e `{placa}`.
+  - **Aviso fixo**: não precisa preencher nada; toca sempre a mesma frase (ex.: "a loja fechará em 15 minutos").
+- O operador escolhe a chamada, preenche e confirma em **Chamar**.
+  A frase aparece na tela antes de tocar.
+- Locais numerados mostram botões de 1 a 5. Se houver mais de 5, aparece também
+  um campo para digitar o número.
+- Enquanto o operador digita, a fala já vai sendo gerada. Ao clicar, ela costuma
+  tocar na hora.
+- As chamadas de grupo e os avisos fixos são preparados com antecedência e funcionam sem internet
+  depois da primeira vez. As que têm nome ou placa são geradas na hora e precisam de internet.
+- Chamadas simultâneas entram em fila. **Parar áudio** interrompe e limpa a fila.
+- Gravações próprias (opcional): coloque arquivos na pasta `gravacoes` dos dados,
+  com o código da chamada no começo do nome: `repositores_caixa_3.mp3`,
+  `repositores_pacote.mp3` ou, para um aviso, `fechamento.mp3`. O código é o nome
+  da chamada sem acentos e espaços, como ela foi criada. Os arquivos substituem a voz gerada.
+
+Onde ficam os dados: `%APPDATA%\Soundpad` no programa instalado (config.json,
+cache das falas e soundpad.log), ou a própria pasta do projeto ao rodar pelo código.
+
+---
+
+## Rodar pelo código (desenvolvimento)
+
+```
+iniciar.bat          # Windows: cria o ambiente e inicia
+python app.py        # com o ambiente (.venv) ativo
+```
+
+O app abre o navegador sozinho. Use `python app.py --segundo-plano` para não abrir.
