@@ -25,7 +25,6 @@ python gerar_falas.py --motor offline  # voz do sistema, sem internet (requer: p
 Isso cria na pasta `audios/` as chamadas de repositores:
 `repositores_caixa_1` … `repositores_caixa_5` e `repositores_pacote`.
 Com eles prontos, a chamada de repositores funciona mesmo sem internet.
-Os arquivos antigos `caixa_1.mp3` … `pacote.mp3` não são mais usados e podem ser apagados.
 
 Para usar **gravações próprias**, coloque arquivos com esses mesmos nomes
 (`.mp3`, `.wav` ou `.ogg`). Se houver mais de uma versão (ex.:
