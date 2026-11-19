@@ -1,0 +1,11 @@
+{
+  "porta": 5000,
+  "numero_de_caixas": 5,
+  "pasta_audios": "audios",
+  "dispositivo_audio": "",
+  "volume": 1.0,
+  "voz": "pt-BR-ThalitaMultilingualNeural",
+  "limite_cache": 300,
+  "voz_reserva": "pt-BR-FranciscaNeural",
+  "velocidade": "-15%"
+}

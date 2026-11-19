@@ -1,0 +1,5 @@
+flask>=3.0
+pygame>=2.5
+edge-tts>=6.1
+# Opcional, só para gerar falas sem internet (gerar_falas.py --motor offline):
+# pyttsx3>=2.90
