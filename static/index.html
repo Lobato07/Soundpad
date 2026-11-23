@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soundpad</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --bg: #14161a; --card: #1e2127; --borda: #2e333b; --texto: #eef0f3;
+    --suave: #9aa3af; --azul: #3b82f6; --verde: #22c55e; --vermelho: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--texto);
+    font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 24px 16px;
+  }
+  main { width: 100%; max-width: 640px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sub { color: var(--suave); margin: 0 0 20px; font-size: .95rem; }
+  button {
+    font: inherit; color: inherit; cursor: pointer; border-radius: 14px;
+    border: 2px solid var(--borda); background: var(--card);
+    padding: 20px 12px; font-size: 1.2rem; font-weight: 600;
+    transition: border-color .12s, background .12s, transform .05s;
+  }
+  button:hover { border-color: var(--azul); }
+  button:active { transform: scale(.98); }
+  button.ativo { border-color: var(--azul); background: #1d2a44; }
+  .abas { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .abas button { padding: 16px 8px; font-size: 1.1rem; }
+  .painel { margin-top: 18px; }
+  .rotulo { display: block; color: var(--suave); font-size: .85rem; margin: 14px 0 6px; }
+  .opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .numeros { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 12px; }
+  .numeros button { padding: 16px 0; font-size: 1.4rem; }
+  .outro { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .outro span { color: var(--suave); white-space: nowrap; }
+  .outro input { font-size: 1.3rem; text-align: center; }
+  .outro input.ativo { border-color: var(--azul); background: #1d2a44; }
+  input {
+    width: 100%; font: inherit; font-size: 1.15rem; color: var(--texto);
+    background: var(--card); border: 2px solid var(--borda); border-radius: 12px;
+    padding: 14px 14px; outline: none;
+  }
+  input:focus { border-color: var(--azul); }
+  input[type=number]::-webkit-inner-spin-button { opacity: .4; }
+  #placa { text-transform: uppercase; letter-spacing: .08em; }
+  .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .oculto { display: none !important; }
+  .previa {
+    margin-top: 20px; padding: 18px; border-radius: 14px; background: var(--card);
+    border: 1px solid var(--borda); font-size: 1.1rem; line-height: 1.45;
+  }
+  .previa small { display: block; color: var(--suave); font-size: .8rem; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: .06em; }
+  .previa .pendente { color: var(--suave); font-style: italic; }
+  #chamar {
+    width: 100%; margin-top: 16px; background: var(--verde); border-color: var(--verde);
+    color: #06210f; font-size: 1.4rem;
+  }
+  #chamar:disabled { opacity: .35; cursor: not-allowed; }
+  #parar { width: 100%; margin-top: 10px; padding: 12px; font-size: 1rem;
+    border-color: var(--vermelho); color: var(--vermelho); background: transparent; }
+  #msg { min-height: 1.6em; margin-top: 14px; color: var(--suave); text-align: center; }
+  #msg.erro { color: var(--vermelho); }
+  #msg.ok { color: var(--verde); }
+  #aviso { margin-top: 10px; font-size: .85rem; color: #f59e0b; text-align: center; }
+  #estado { margin-top: 6px; font-size: .85rem; color: var(--suave); text-align: center; }
+  .banner { background: #2a2410; border: 1px solid #f59e0b55; color: #fbbf24; border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 16px; font-size: .95rem; }
+  .banner a, footer a { color: inherit; }
+  footer { margin-top: 28px; text-align: center; font-size: .85rem; color: var(--suave); }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--texto); }
+</style>
+</head>
+<body>
+<main>
+  <div id="banner-config" class="banner oculto">
+    Primeira vez? <a href="/ajustes">Abra os Ajustes</a> para escolher a saída de som, a voz e os locais.
+  </div>
+  <h1 id="titulo">Soundpad</h1>
+  <p class="sub">Escolha o tipo de chamada, preencha e confirme.</p>
+
+  <div id="abas" class="abas"></div>
+
+  <!-- Vendedor: nome -->
+  <div id="painel-vendedor" class="painel oculto">
+    <label class="rotulo" for="nome">Nome</label>
+    <input id="nome" autocomplete="off" placeholder="Ex.: Carlos">
+  </div>
+
+  <!-- Repositores e vendedor: local -->
+  <div id="painel-destino" class="painel oculto">
+    <span class="rotulo">Comparecer</span>
+    <div id="destinos" class="opcoes"></div>
+    <div id="numeros" class="numeros oculto"></div>
+    <label id="outro" class="outro oculto">
+      <span id="outro-rotulo">Outro número:</span>
+      <input id="numero-digitado" type="number" inputmode="numeric" min="1" placeholder="Digite">
+    </label>
+  </div>
+
+  <!-- Veículo -->
+  <div id="painel-veiculo" class="painel oculto">
+    <label class="rotulo" for="modelo">Modelo do veículo</label>
+    <input id="modelo" autocomplete="off" placeholder="Ex.: Fiat Uno">
+    <div class="linha">
+      <div>
+        <label class="rotulo" for="cor">Cor</label>
+        <input id="cor" autocomplete="off" placeholder="Ex.: prata">
+      </div>
+      <div>
+        <label class="rotulo" for="placa">Placa</label>
+        <input id="placa" autocomplete="off" maxlength="8" placeholder="ABC1D23">
+      </div>
+    </div>
+  </div>
+
+  <div id="previa" class="previa oculto">
+    <small>Mensagem que será anunciada</small>
+    <span id="texto"></span>
+  </div>
+
+  <button id="chamar" type="button" disabled>🔊 Chamar</button>
+  <button id="parar" type="button">Parar áudio</button>
+
+  <div id="msg"></div>
+  <div id="estado"></div>
+  <div id="aviso" class="oculto"></div>
+
+  <footer><a href="/ajustes">⚙ Ajustes</a></footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const BOTOES_DE_NUMERO = 5;
+let cfg = null;
+const estado = { tipo: null, modelo: null, destino: null, numero: null, digitado: false };
+let previaOk = false;
+let enviando = false;
+let msgTimer = null, previaTimer = null, preparoTimer = null;
+let previaSeq = 0;
+
+function mostrarMsg(texto, classe = "") {
+  const el = $("msg");
+  el.textContent = texto;
+  el.className = classe;
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => { el.textContent = ""; el.className = ""; }, 5000);
+}
+
+function pedido() {
+  return {
+    tipo: estado.tipo, destino: estado.destino, numero: estado.numero,
+    nome: $("nome").value, modelo: $("modelo").value,
+    cor: $("cor").value, placa: $("placa").value,
+  };
+}
+
+function destinoAtual() {
+  return estado.destino === null ? null : cfg.destinos[estado.destino];
+}
+
+function montarNumeros() {
+  const d = destinoAtual();
+  const caixa = $("numeros");
+  caixa.innerHTML = "";
+  const temNumeros = d && d.numerado;
+  caixa.classList.toggle("oculto", !temNumeros);
+  $("outro").classList.toggle("oculto", !temNumeros || d.quantidade <= BOTOES_DE_NUMERO);
+  if (!temNumeros) return;
+  for (let n = 1; n <= Math.min(d.quantidade, BOTOES_DE_NUMERO); n++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = n; b.dataset.n = n;
+    b.onclick = () => {
+      estado.numero = n; estado.digitado = false;
+      $("numero-digitado").value = "";
+      atualizarTela();
+    };
+    caixa.appendChild(b);
+  }
+  const campo = $("numero-digitado");
+  campo.max = d.quantidade;
+  campo.placeholder = `${BOTOES_DE_NUMERO + 1} a ${d.quantidade}`;
+  $("outro-rotulo").textContent = `Outro ${d.nome.toLowerCase()}:`;
+}
+
+function atualizarTela() {
+  const t = estado.tipo, m = estado.modelo;
+  document.querySelectorAll("#abas button").forEach((b) =>
+    b.classList.toggle("ativo", b.dataset.tipo === t));
+  $("painel-vendedor").classList.toggle("oculto", m !== "pessoa");
+  $("painel-destino").classList.toggle("oculto", m !== "grupo" && m !== "pessoa");
+  $("painel-veiculo").classList.toggle("oculto", m !== "veiculo");
+  document.querySelectorAll("#destinos button").forEach((b) =>
+    b.classList.toggle("ativo", Number(b.dataset.i) === estado.destino));
+  [...$("numeros").children].forEach((b) =>
+    b.classList.toggle("ativo", !estado.digitado && Number(b.dataset.n) === estado.numero));
+  $("numero-digitado").classList.toggle("ativo", estado.digitado && !!estado.numero);
+  $("previa").classList.toggle("oculto", !t);
+  pedirPrevia();
+}
+
+function pedirPrevia() {
+  previaOk = false;
+  $("chamar").disabled = true;
+  clearTimeout(previaTimer);
+  clearTimeout(preparoTimer);
+  if (!estado.tipo) return;
+  previaTimer = setTimeout(async () => {
+    const seq = ++previaSeq;
+    try {
+      const r = await fetch("/api/previa", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pedido()),
+      });
+      const d = await r.json();
+      if (seq !== previaSeq) return;
+      const el = $("texto");
+      el.textContent = d.ok ? d.texto : d.mensagem;
+      el.className = d.ok ? "" : "pendente";
+      previaOk = d.ok;
+      $("chamar").disabled = !previaOk || enviando;
+      // Quando o operador para de digitar, o áudio já começa a ser gerado.
+      if (d.ok) preparoTimer = setTimeout(preparar, 600);
+    } catch (e) {
+      $("texto").textContent = "Sem conexão com o computador da mesa de som.";
+      $("texto").className = "pendente";
+    }
+  }, 200);
+}
+
+function preparar() {
+  fetch("/api/preparar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pedido()),
+  }).catch(() => {});
+}
+
+async function chamar() {
+  if (!previaOk || enviando) return;
+  enviando = true;
+  const botao = $("chamar");
+  botao.disabled = true;
+  const aviso = setTimeout(() => { botao.textContent = "Preparando áudio…"; }, 300);
+  try {
+    const r = await fetch("/api/chamar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pedido()),
+    });
+    const d = await r.json();
+    mostrarMsg(d.mensagem, d.ok ? "ok" : "erro");
+  } catch (e) {
+    mostrarMsg("Não consegui falar com o computador da mesa de som.", "erro");
+  }
+  clearTimeout(aviso);
+  botao.textContent = "🔊 Chamar";
+  setTimeout(() => { enviando = false; botao.disabled = !previaOk; }, 1200);
+  checarStatus();
+}
+
+async function checarStatus() {
+  try {
+    const d = await (await fetch("/api/status")).json();
+    let e = "";
+    if (d.tocando) e = "Tocando: " + d.tocando;
+    if (d.na_fila.length) e += (e ? " · " : "") + "Na fila: " + d.na_fila.join(", ");
+    $("estado").textContent = e;
+    const aviso = $("aviso");
+    const t = d.erro ? "Erro de áudio no computador: " + d.erro : "";
+    aviso.textContent = t;
+    aviso.classList.toggle("oculto", !t);
+  } catch (e) { /* sem rede: ignora */ }
+}
+
+async function iniciar() {
+  cfg = await (await fetch("/api/config")).json();
+  $("titulo").textContent = cfg.nome_local;
+  document.title = cfg.nome_local;
+  $("banner-config").classList.toggle("oculto", cfg.configurado || !cfg.este_computador);
+
+  cfg.chamadas.forEach((a) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = a.rotulo; b.dataset.tipo = a.tipo;
+    b.onclick = () => {
+      estado.tipo = a.tipo; estado.modelo = a.modelo;
+      atualizarTela();
+      if (a.modelo === "pessoa") $("nome").focus();
+      if (a.modelo === "veiculo") $("modelo").focus();
+    };
+    $("abas").appendChild(b);
+  });
+  cfg.destinos.forEach((d, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = d.nome; b.dataset.i = i;
+    b.onclick = () => {
+      estado.destino = i; estado.numero = null; estado.digitado = false;
+      $("numero-digitado").value = "";
+      montarNumeros();
+      atualizarTela();
+    };
+    $("destinos").appendChild(b);
+  });
+  // Se só existe um local, ele já vem escolhido.
+  if (cfg.destinos.length === 1) { estado.destino = 0; montarNumeros(); }
+  if (cfg.chamadas.length === 1) { estado.tipo = cfg.chamadas[0].tipo; estado.modelo = cfg.chamadas[0].modelo; }
+
+  ["nome", "modelo", "cor"].forEach((id) => $(id).maxLength = cfg.limite_texto);
+  ["nome", "modelo", "cor", "placa"].forEach((id) => $(id).addEventListener("input", pedirPrevia));
+  $("numero-digitado").addEventListener("input", (ev) => {
+    const valor = ev.target.value.trim();
+    estado.digitado = valor !== "";
+    estado.numero = valor === "" ? null : valor;
+    atualizarTela();
+  });
+  $("numero-digitado").addEventListener("focus", () => {
+    if ($("numero-digitado").value) { estado.digitado = true; estado.numero = $("numero-digitado").value; atualizarTela(); }
+  });
+  $("chamar").onclick = chamar;
+  $("parar").onclick = async () => {
+    const d = await (await fetch("/api/parar", { method: "POST" })).json();
+    mostrarMsg(d.mensagem, "ok");
+    checarStatus();
+  };
+  atualizarTela();
+  checarStatus();
+  setInterval(checarStatus, 3000);
+}
+iniciar();
+</script>
+</body>
+</html>

@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ajustes · Soundpad</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --bg: #14161a; --card: #1e2127; --borda: #2e333b; --texto: #eef0f3;
+    --suave: #9aa3af; --azul: #3b82f6; --verde: #22c55e; --vermelho: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--texto);
+    font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 24px 16px 110px;
+  }
+  main { width: 100%; max-width: 720px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sub { color: var(--suave); margin: 0 0 20px; font-size: .95rem; }
+  .sub a { color: var(--azul); }
+  section { background: var(--card); border: 1px solid var(--borda); border-radius: 14px;
+    padding: 18px; margin-bottom: 16px; }
+  h2 { font-size: 1.05rem; margin: 0 0 4px; }
+  .dica { color: var(--suave); font-size: .85rem; margin: 0 0 12px; line-height: 1.4; }
+  label.campo { display: block; margin-top: 12px; }
+  label.campo > span { display: block; color: var(--suave); font-size: .85rem; margin-bottom: 6px; }
+  input, select, textarea {
+    width: 100%; font: inherit; font-size: 1rem; color: var(--texto); background: var(--bg);
+    border: 2px solid var(--borda); border-radius: 10px; padding: 10px 12px; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--azul); }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.4; }
+  input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--azul); }
+  input[type=range] { padding: 0; accent-color: var(--azul); border: none; background: transparent; }
+  button {
+    font: inherit; color: inherit; cursor: pointer; border-radius: 10px;
+    border: 2px solid var(--borda); background: var(--bg); padding: 10px 14px; font-weight: 600;
+  }
+  button:hover { border-color: var(--azul); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .botoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .chamada { border: 1px solid var(--borda); border-radius: 12px; padding: 12px; margin-top: 10px; background: var(--bg); }
+  .chamada.inativa { opacity: .55; }
+  .chamada .topo { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 10px; align-items: center; }
+  .chamada textarea { margin-top: 10px; background: var(--card); }
+  .chamada .ajuda { color: var(--suave); font-size: .8rem; margin-top: 6px; }
+  .chamada .ajuda code { color: var(--texto); }
+  .local { display: grid; grid-template-columns: 1.4fr .8fr auto .8fr auto; gap: 8px; align-items: center;
+    margin-top: 8px; }
+  .local .num { display: flex; gap: 6px; align-items: center; color: var(--suave); font-size: .85rem; white-space: nowrap; }
+  .cabecalho { color: var(--suave); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+  .remover { border-color: transparent; color: var(--vermelho); padding: 8px 10px; }
+  .endereco { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .endereco code { flex: 1; background: var(--bg); border: 1px solid var(--borda); border-radius: 10px;
+    padding: 10px 12px; font-size: 1.05rem; }
+  .valor { color: var(--texto); font-weight: 600; }
+  .oculto { display: none !important; }
+  .barra { position: fixed; left: 0; right: 0; bottom: 0; background: #0f1114ee; border-top: 1px solid var(--borda);
+    padding: 14px 16px; display: flex; justify-content: center; }
+  .barra > div { width: 100%; max-width: 720px; display: flex; gap: 12px; align-items: center; }
+  #salvar { background: var(--verde); border-color: var(--verde); color: #06210f; padding: 12px 22px; font-size: 1.05rem; }
+  #msg { flex: 1; color: var(--suave); }
+  #msg.erro { color: var(--vermelho); }
+  #msg.ok { color: var(--verde); }
+  .perigo { border-color: var(--vermelho); color: var(--vermelho); }
+  .programado { border: 1px solid var(--borda); border-radius: 12px; padding: 12px; margin-top: 10px; background: var(--bg); }
+  .programado.inativa { opacity: .55; }
+  .programado .topo { display: grid; grid-template-columns: auto 1fr 130px auto; gap: 10px; align-items: center; }
+  .programado input:not([type=checkbox]), .programado textarea { background: var(--card); }
+  .programado textarea { margin-top: 10px; min-height: 64px; }
+  .programado .arquivo { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .programado .arquivo span { color: var(--suave); font-size: .9rem; flex: 1; min-width: 160px; word-break: break-all; }
+  .programado .arquivo span.escolhido { color: var(--texto); }
+  .dias { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+  .dias label { display: flex; align-items: center; gap: 4px; border: 1px solid var(--borda); border-radius: 8px;
+    padding: 5px 8px; font-size: .85rem; cursor: pointer; }
+  .dias label.ligado { border-color: var(--azul); background: #3b82f622; }
+  .dias input { width: 16px; height: 16px; }
+  .dias .extra { margin-left: auto; color: var(--suave); }
+  .bloqueio { text-align: center; padding: 40px 18px; }
+  .bloqueio input { max-width: 220px; text-align: center; font-size: 1.3rem; letter-spacing: .2em; }
+  @media (max-width: 560px) {
+    .local { grid-template-columns: 1fr 1fr; }
+    .chamada .topo { grid-template-columns: auto 1fr auto; }
+    .chamada .topo select { grid-column: 1 / -1; }
+    .linha { grid-template-columns: 1fr; }
+    .programado .topo { grid-template-columns: auto 1fr auto; }
+    .programado .topo .p-horario { grid-column: 1 / -1; }
+    .dias .extra { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ajustes</h1>
+  <p class="sub"><a href="/">← Voltar para o painel de chamadas</a></p>
+
+  <!-- Pedido de senha (acesso de outro computador) -->
+  <section id="tela-senha" class="bloqueio oculto">
+    <h2 id="senha-titulo">Digite a senha dos Ajustes</h2>
+    <p class="dica" id="senha-dica"></p>
+    <input id="senha" type="password" inputmode="numeric" autocomplete="off">
+    <div class="botoes" style="justify-content:center"><button id="entrar">Entrar</button></div>
+  </section>
+
+  <div id="conteudo" class="oculto">
+    <section id="boas-vindas" class="oculto" style="border-color:#3b82f6">
+      <h2>Bem-vindo ao Soundpad 👋</h2>
+      <p class="dica" style="margin:0">Confira os itens abaixo e clique em <b>Salvar</b>. Depois disso, qualquer
+        computador da rede pode fazer chamadas pelo endereço que aparece em <b>Acesso pelos outros computadores</b>.</p>
+    </section>
+
+    <section>
+      <h2>Geral</h2>
+      <label class="campo"><span>Nome que aparece no topo do painel</span>
+        <input id="nome_local" maxlength="50" placeholder="Ex.: Supermercado Bom Preço"></label>
+    </section>
+
+    <section>
+      <h2>Locais</h2>
+      <p class="dica">Para onde as pessoas são chamadas. Marque "numerado" para locais como Caixa 1, Caixa 2…
+        Até 5 aparecem como botões; acima disso, o operador também pode digitar o número.</p>
+      <div class="local cabecalho"><span>Nome</span><span>Falar</span><span></span><span>Quantos</span><span></span></div>
+      <div id="locais"></div>
+      <div class="botoes"><button id="add-local" type="button">+ Adicionar local</button></div>
+    </section>
+
+    <section>
+      <h2>Chamadas</h2>
+      <p class="dica">Cada chamada vira um botão no painel. O tipo define o que o operador preenche.
+        Mantenha as palavras entre chaves na frase: elas são trocadas na hora
+        (<b>{local}</b> vira, por exemplo, "ao caixa 3"). Desmarque para esconder sem apagar.</p>
+      <div id="chamadas"></div>
+      <div class="botoes"><button id="add-chamada" type="button">+ Adicionar chamada</button></div>
+    </section>
+
+    <section>
+      <h2>Saída de som</h2>
+      <p class="dica">Escolha a saída ligada à mesa de som ou às caixas da loja.</p>
+      <label class="campo"><span>Saída de áudio</span>
+        <select id="dispositivo_audio"></select></label>
+      <label class="campo"><span>Volume: <span id="volume-valor" class="valor"></span></span>
+        <input id="volume" type="range" min="5" max="100" step="5"></label>
+    </section>
+
+    <section>
+      <h2>Áudios programados</h2>
+      <p class="dica">Tocam sozinhos nas caixas de som no horário e nos dias marcados (ex.: aviso de fechamento).
+        Escreva a frase e a mesma voz das chamadas faz o anúncio. Se quiser, escolha um áudio do seu computador
+        (MP3, WAV, OGG ou FLAC) para tocar antes da voz: ele é copiado para o computador da mesa de som.
+        Ordem: campainha (se marcada) → áudio escolhido → voz. O Soundpad precisa estar aberto no horário.</p>
+      <div id="programados"></div>
+      <div class="botoes"><button id="add-programado" type="button">+ Adicionar áudio programado</button></div>
+      <input id="seletor-arquivo" type="file" class="oculto">
+    </section>
+
+    <section>
+      <h2>Voz</h2>
+      <label class="campo"><span>Serviço de voz</span>
+        <select id="motor_voz">
+          <option value="edge">Vozes neurais Microsoft Edge (gratuito)</option>
+          <option value="azure">Azure Speech (oficial, pago por uso)</option>
+        </select></label>
+      <div id="azure" class="linha oculto">
+        <label class="campo"><span>Chave do Azure</span>
+          <input id="azure_chave" type="password" autocomplete="off"></label>
+        <label class="campo"><span>Região</span>
+          <input id="azure_regiao" placeholder="brazilsouth"></label>
+      </div>
+      <label class="campo"><span>Voz</span><select id="voz"></select></label>
+      <label class="campo"><span>Velocidade: <span id="vel-valor" class="valor"></span></span>
+        <input id="velocidade" type="range" min="-40" max="30" step="5"></label>
+      <label class="campo"><span>Reforço da voz nas caixas de som: <span id="ganho-valor" class="valor"></span></span>
+        <input id="ganho_voz" type="range" min="1" max="4" step="0.25"></label>
+      <p class="dica" style="margin-top:6px">Deixa a voz das chamadas mais alta que a campainha e a música, sem estourar.
+        Se ficar distorcida, diminua um pouco. Vale só para as caixas de som (não para o "Ouvir aqui").</p>
+      <div class="botoes">
+        <button id="ouvir" type="button">▶ Ouvir aqui</button>
+        <button id="testar" type="button">🔊 Tocar nas caixas de som</button>
+      </div>
+      <p class="dica" style="margin-top:10px">As chamadas com nome e placa são geradas na hora e precisam de internet.
+        As de repositores ficam guardadas e funcionam sem internet depois de feitas uma vez.</p>
+      <audio id="player" class="oculto"></audio>
+    </section>
+
+    <section>
+      <h2>Acesso pelos outros computadores</h2>
+      <p class="dica">Abra este endereço no navegador dos outros computadores da rede e salve nos favoritos.</p>
+      <div id="enderecos"></div>
+      <p class="dica" style="margin-top:14px">Para o endereço não mudar, peça a quem cuida da rede para reservar o IP
+        deste computador no roteador.</p>
+      <label class="campo"><span id="pin-rotulo">Senha para abrir os Ajustes de outro computador (4 a 8 números)</span>
+        <input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"
+               placeholder="Sem senha: os Ajustes só abrem neste computador"></label>
+      <div class="botoes"><button id="remover-pin" type="button" class="oculto">Remover senha</button></div>
+    </section>
+
+    <section>
+      <h2>Sistema</h2>
+      <p class="dica" id="sistema"></p>
+      <div class="botoes"><button id="encerrar" type="button" class="perigo">Encerrar o Soundpad</button></div>
+    </section>
+  </div>
+</main>
+
+<div class="barra"><div>
+  <button id="salvar" type="button" disabled>Salvar</button>
+  <span id="msg"></span>
+</div></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let dados = null;       // resposta de /api/ajustes
+let novoPin = null;     // null = não mexer na senha
+let msgTimer = null;
+
+function guardarSenha(s) { try { sessionStorage.setItem("soundpad-pin", s); } catch (e) {} }
+function lerSenha() { try { return sessionStorage.getItem("soundpad-pin") || ""; } catch (e) { return ""; } }
+
+async function api(url, opcoes = {}) {
+  opcoes.headers = { "Content-Type": "application/json", "X-Pin": lerSenha(), ...(opcoes.headers || {}) };
+  const r = await fetch(url, opcoes);
+  if (r.status === 401 || r.status === 403) {
+    const d = await r.json();
+    pedirSenha(d);
+    throw new Error(d.mensagem);
+  }
+  return r;
+}
+
+function mostrarMsg(texto, classe = "") {
+  const el = $("msg");
+  el.textContent = texto; el.className = classe;
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => { el.textContent = ""; el.className = ""; }, 6000);
+}
+
+function pedirSenha(d) {
+  $("conteudo").classList.add("oculto");
+  $("tela-senha").classList.remove("oculto");
+  $("salvar").disabled = true;
+  const semSenha = !d.senha;
+  $("senha-titulo").textContent = semSenha ? "Ajustes bloqueados neste computador" : "Digite a senha dos Ajustes";
+  $("senha-dica").textContent = d.mensagem;
+  $("senha").classList.toggle("oculto", semSenha);
+  $("entrar").classList.toggle("oculto", semSenha);
+  if (!semSenha) $("senha").focus();
+}
+
+// ------------------------------------------------------------ montar a tela
+const AJUDA_MODELO = {
+  grupo: "O operador escolhe o local. Use <code>{local}</code>.",
+  pessoa: "O operador digita o nome e escolhe o local. Use <code>{nome}</code> e <code>{local}</code>.",
+  veiculo: "O operador digita modelo, cor e placa. Use <code>{modelo}</code>, <code>{cor}</code> e <code>{placa}</code>.",
+  aviso: "Não precisa preencher nada: toca sempre a mesma frase.",
+};
+
+function linhaChamada(c) {
+  const div = document.createElement("div");
+  div.className = "chamada"; div.dataset.id = c.id || "";
+  const opcoes = Object.entries(dados.modelos)
+    .map(([id, m]) => `<option value="${id}">${m.nome}</option>`).join("");
+  div.innerHTML = `
+    <div class="topo">
+      <input type="checkbox" class="c-ativo" title="Ativa">
+      <input class="c-rotulo" maxlength="20" placeholder="Nome do botão (ex.: Segurança)">
+      <select class="c-modelo">${opcoes}</select>
+      <button type="button" class="remover" title="Remover">✕</button>
+    </div>
+    <textarea class="c-frase"></textarea>
+    <div class="ajuda"></div>`;
+  const ativo = div.querySelector(".c-ativo"), modelo = div.querySelector(".c-modelo");
+  const frase = div.querySelector(".c-frase"), ajuda = div.querySelector(".ajuda");
+  ativo.checked = c.ativo;
+  div.querySelector(".c-rotulo").value = c.rotulo;
+  modelo.value = c.modelo;
+  frase.value = c.frase;
+  const atualizar = () => {
+    ajuda.innerHTML = AJUDA_MODELO[modelo.value];
+    div.classList.toggle("inativa", !ativo.checked);
+  };
+  ativo.onchange = atualizar;
+  modelo.onchange = () => {
+    // Troca a frase de exemplo se a atual ainda era um exemplo (ou estava vazia).
+    const exemplos = Object.values(dados.frases_exemplo);
+    if (!frase.value.trim() || exemplos.includes(frase.value)) frase.value = dados.frases_exemplo[modelo.value];
+    atualizar();
+  };
+  div.querySelector(".remover").onclick = () => {
+    if (confirm(`Remover a chamada "${div.querySelector(".c-rotulo").value || "sem nome"}"?`)) div.remove();
+  };
+  atualizar();
+  return div;
+}
+
+function linhaLocal(d) {
+  const div = document.createElement("div");
+  div.className = "local";
+  const preps = dados.preposicoes.map((p) => `<option value="${p}">${p} …</option>`).join("");
+  div.innerHTML = `
+    <input class="l-nome" maxlength="30" placeholder="Ex.: Caixa">
+    <select class="l-prep">${preps}</select>
+    <label class="num"><input type="checkbox" class="l-numerado"> numerado</label>
+    <input class="l-qtd" type="number" min="1" max="999">
+    <button type="button" class="remover" title="Remover">✕</button>`;
+  div.querySelector(".l-nome").value = d.nome;
+  div.querySelector(".l-prep").value = d.preposicao;
+  div.querySelector(".l-numerado").checked = d.numerado;
+  const qtd = div.querySelector(".l-qtd");
+  qtd.value = d.numerado ? d.quantidade : "";
+  qtd.disabled = !d.numerado;
+  div.querySelector(".l-numerado").onchange = (ev) => {
+    qtd.disabled = !ev.target.checked;
+    if (ev.target.checked && !qtd.value) qtd.value = 5;
+  };
+  div.querySelector(".remover").onclick = () => div.remove();
+  return div;
+}
+
+function linhaProgramado(a) {
+  const div = document.createElement("div");
+  div.className = "programado"; div.dataset.id = a.id || ""; div.dataset.arquivo = a.arquivo || "";
+  const dias = dados.dias_semana.map((d, i) =>
+    `<label><input type="checkbox" class="p-dia" value="${i}"> ${d}</label>`).join("");
+  div.innerHTML = `
+    <div class="topo">
+      <input type="checkbox" class="p-ativo" title="Ativo">
+      <input class="p-nome" maxlength="60" placeholder="Nome (ex.: Aviso de fechamento)">
+      <input class="p-horario" type="time" title="Horário">
+      <button type="button" class="remover" title="Remover">✕</button>
+    </div>
+    <textarea class="p-frase" maxlength="400"
+      placeholder="Frase que a voz fala (ex.: Senhores clientes, nossa loja fechará em uma hora.)"></textarea>
+    <div class="arquivo">
+      <button type="button" class="p-escolher">📁 Áudio antes da voz…</button>
+      <span class="p-arquivo"></span>
+      <button type="button" class="p-tirar remover" title="Tirar o áudio">✕</button>
+      <button type="button" class="p-tocar">▶ Tocar agora</button>
+    </div>
+    <div class="dias">${dias}
+      <button type="button" class="p-todos" style="padding:5px 10px;font-size:.85rem">Todos</button>
+      <label class="extra"><input type="checkbox" class="p-campainha"> Campainha antes</label>
+    </div>`;
+  const ativo = div.querySelector(".p-ativo");
+  ativo.checked = a.ativo !== false;
+  div.querySelector(".p-nome").value = a.nome || "";
+  div.querySelector(".p-horario").value = a.horario || "";
+  const frase = div.querySelector(".p-frase");
+  frase.value = a.frase || "";
+  div.querySelector(".p-campainha").checked = !!a.campainha;
+  const caixasDias = [...div.querySelectorAll(".p-dia")];
+  const pintarDias = () => caixasDias.forEach((c) => c.parentElement.classList.toggle("ligado", c.checked));
+  caixasDias.forEach((c) => { c.checked = (a.dias || []).includes(Number(c.value)); c.onchange = pintarDias; });
+  div.querySelector(".p-todos").onclick = () => {
+    const marcar = !caixasDias.every((c) => c.checked);
+    caixasDias.forEach((c) => c.checked = marcar);
+    pintarDias();
+  };
+  const mostrarArquivo = () => {
+    const span = div.querySelector(".p-arquivo");
+    span.textContent = div.dataset.arquivo || "Opcional: um som ou vinheta que toca antes da voz";
+    span.classList.toggle("escolhido", !!div.dataset.arquivo);
+    div.querySelector(".p-tirar").classList.toggle("oculto", !div.dataset.arquivo);
+    div.querySelector(".p-tocar").disabled = !div.dataset.arquivo && !frase.value.trim();
+  };
+  frase.oninput = mostrarArquivo;
+  div.querySelector(".p-tirar").onclick = () => { div.dataset.arquivo = ""; mostrarArquivo(); };
+  ativo.onchange = () => div.classList.toggle("inativa", !ativo.checked);
+  div.querySelector(".p-escolher").onclick = () => escolherArquivo(div, mostrarArquivo);
+  div.querySelector(".p-tocar").onclick = async () => {
+    try {
+      const r = await api("/api/programados/tocar", { method: "POST", body: JSON.stringify({
+        arquivo: div.dataset.arquivo, nome: div.querySelector(".p-nome").value, frase: frase.value,
+        campainha: div.querySelector(".p-campainha").checked }) });
+      const d = await r.json();
+      mostrarMsg(d.mensagem, d.ok ? "ok" : "erro");
+    } catch (e) { mostrarMsg("Não consegui tocar o áudio.", "erro"); }
+  };
+  div.querySelector(".remover").onclick = () => {
+    if (confirm(`Remover "${div.querySelector(".p-nome").value || "áudio programado"}"?`)) div.remove();
+  };
+  ativo.onchange(); pintarDias(); mostrarArquivo();
+  return div;
+}
+
+function escolherArquivo(div, depois) {
+  const seletor = $("seletor-arquivo");
+  seletor.accept = dados.extensoes_programados.join(",") + ",audio/*";
+  seletor.value = "";
+  seletor.onchange = async () => {
+    const arquivo = seletor.files[0];
+    if (!arquivo) return;
+    const botao = div.querySelector(".p-escolher");
+    botao.disabled = true; botao.textContent = "Enviando…";
+    try {
+      const corpo = new FormData();
+      corpo.append("arquivo", arquivo);
+      const r = await fetch("/api/programados/enviar", { method: "POST", body: corpo, headers: { "X-Pin": lerSenha() } });
+      const d = r.status === 413 ? { ok: false, mensagem: "Arquivo grande demais (máximo 100 MB)." } : await r.json();
+      if (d.ok) {
+        div.dataset.arquivo = d.arquivo;
+        depois();
+        mostrarMsg("Áudio enviado. Clique em Salvar para guardar o horário.", "ok");
+      } else mostrarMsg(d.mensagem, "erro");
+    } catch (e) { mostrarMsg("Não consegui enviar o áudio.", "erro"); }
+    botao.disabled = false; botao.textContent = "📁 Áudio antes da voz…";
+  };
+  seletor.click();
+}
+
+function rotuloGanho(v) {
+  v = Number(v);
+  return v <= 1 ? "sem reforço" : `${Math.round(v * 100)}%`;
+}
+
+function rotuloVelocidade(v) {
+  v = Number(v);
+  if (v === 0) return "normal";
+  return v < 0 ? `${-v}% mais devagar` : `${v}% mais rápido`;
+}
+
+async function carregarDispositivos(atual) {
+  const sel = $("dispositivo_audio");
+  sel.innerHTML = `<option value="">Saída padrão do Windows</option>`;
+  try {
+    const d = await (await api("/api/dispositivos")).json();
+    d.dispositivos.forEach((nome) => sel.add(new Option(nome, nome)));
+  } catch (e) {}
+  if (atual && ![...sel.options].some((o) => o.value === atual)) sel.add(new Option(atual + " (não encontrada)", atual));
+  sel.value = atual || "";
+}
+
+async function carregarVozes(atual) {
+  const sel = $("voz");
+  sel.innerHTML = `<option>Carregando vozes…</option>`;
+  let vozes = [];
+  try {
+    vozes = (await (await api("/api/vozes?motor=" + $("motor_voz").value)).json()).vozes;
+  } catch (e) {}
+  sel.innerHTML = "";
+  vozes.forEach((v) => sel.add(new Option(v.nome, v.id)));
+  if (atual && !vozes.some((v) => v.id === atual)) sel.add(new Option(atual, atual));
+  sel.value = atual || (vozes[0] && vozes[0].id) || "";
+}
+
+function preencherTela() {
+  const a = dados.ajustes;
+  $("boas-vindas").classList.toggle("oculto", a.configurado);
+  $("nome_local").value = a.nome_local;
+  $("chamadas").innerHTML = "";
+  a.chamadas.forEach((c) => $("chamadas").appendChild(linhaChamada(c)));
+  $("locais").innerHTML = "";
+  a.destinos.forEach((d) => $("locais").appendChild(linhaLocal(d)));
+  $("volume").value = Math.round(a.volume * 100);
+  $("volume-valor").textContent = $("volume").value + "%";
+  $("motor_voz").value = a.motor_voz;
+  $("azure").classList.toggle("oculto", a.motor_voz !== "azure");
+  $("azure_regiao").value = a.azure_regiao;
+  $("azure_chave").placeholder = a.azure_chave_definida ? "Chave salva (deixe vazio para manter)" : "";
+  $("velocidade").value = a.velocidade;
+  $("vel-valor").textContent = rotuloVelocidade(a.velocidade);
+  $("ganho_voz").value = a.ganho_voz;
+  $("ganho-valor").textContent = rotuloGanho(a.ganho_voz);
+  $("programados").innerHTML = "";
+  a.agendamentos.forEach((p) => $("programados").appendChild(linhaProgramado(p)));
+  $("enderecos").innerHTML = "";
+  (dados.enderecos.length ? dados.enderecos : ["(não encontrei o IP deste computador)"]).forEach((url) => {
+    const div = document.createElement("div");
+    div.className = "endereco";
+    div.innerHTML = `<code></code><button type="button">Copiar</button>`;
+    div.querySelector("code").textContent = url;
+    div.querySelector("button").onclick = async () => {
+      try { await navigator.clipboard.writeText(url); mostrarMsg("Endereço copiado.", "ok"); }
+      catch (e) { mostrarMsg("Selecione o endereço e copie com Ctrl+C."); }
+    };
+    $("enderecos").appendChild(div);
+  });
+  $("pin").value = ""; novoPin = null;
+  $("pin-rotulo").textContent = a.pin_definido
+    ? "Senha dos Ajustes: definida. Digite outra para trocar."
+    : "Senha para abrir os Ajustes de outro computador (4 a 8 números)";
+  $("pin").placeholder = a.pin_definido
+    ? "Deixe vazio para manter a senha atual"
+    : "Sem senha: os Ajustes só abrem neste computador";
+  $("remover-pin").classList.toggle("oculto", !a.pin_definido);
+  $("sistema").textContent = `Versão ${dados.versao} · Dados salvos em ${dados.pasta_dados}`;
+  $("encerrar").classList.toggle("oculto", !dados.instalado);
+  carregarDispositivos(a.dispositivo_audio);
+  carregarVozes(a.voz);
+}
+
+function lerTela() {
+  const chamadas = [...document.querySelectorAll("#chamadas .chamada")].map((div) => ({
+    id: div.dataset.id,
+    ativo: div.querySelector(".c-ativo").checked,
+    rotulo: div.querySelector(".c-rotulo").value,
+    modelo: div.querySelector(".c-modelo").value,
+    frase: div.querySelector(".c-frase").value,
+  }));
+  const destinos = [...document.querySelectorAll("#locais .local")].map((div) => ({
+    nome: div.querySelector(".l-nome").value,
+    preposicao: div.querySelector(".l-prep").value,
+    numerado: div.querySelector(".l-numerado").checked,
+    quantidade: Number(div.querySelector(".l-qtd").value || 0),
+  }));
+  const agendamentos = [...document.querySelectorAll("#programados .programado")].map((div) => ({
+    id: div.dataset.id,
+    arquivo: div.dataset.arquivo,
+    ativo: div.querySelector(".p-ativo").checked,
+    nome: div.querySelector(".p-nome").value,
+    frase: div.querySelector(".p-frase").value,
+    horario: div.querySelector(".p-horario").value,
+    dias: [...div.querySelectorAll(".p-dia:checked")].map((c) => Number(c.value)),
+    campainha: div.querySelector(".p-campainha").checked,
+  }));
+  return {
+    nome_local: $("nome_local").value,
+    chamadas, destinos, agendamentos,
+    ganho_voz: Number($("ganho_voz").value),
+    dispositivo_audio: $("dispositivo_audio").value,
+    volume: Number($("volume").value) / 100,
+    motor_voz: $("motor_voz").value,
+    voz: $("voz").value,
+    velocidade: Number($("velocidade").value),
+    azure_regiao: $("azure_regiao").value,
+    azure_chave: $("azure_chave").value,
+    pin: novoPin,
+  };
+}
+
+function vozDaTela() {
+  return JSON.stringify({
+    voz: $("voz").value, motor_voz: $("motor_voz").value, velocidade: Number($("velocidade").value),
+    azure_chave: $("azure_chave").value, azure_regiao: $("azure_regiao").value,
+  });
+}
+
+// ------------------------------------------------------------ ações
+async function carregar() {
+  try {
+    const r = await api("/api/ajustes");
+    dados = await r.json();
+  } catch (e) { return; }
+  $("tela-senha").classList.add("oculto");
+  $("conteudo").classList.remove("oculto");
+  $("salvar").disabled = false;
+  preencherTela();
+}
+
+async function salvar() {
+  $("salvar").disabled = true;
+  try {
+    const corpo = lerTela();
+    const r = await api("/api/ajustes", { method: "POST", body: JSON.stringify(corpo) });
+    const d = await r.json();
+    mostrarMsg(d.mensagem, d.ok ? "ok" : "erro");
+    if (d.ok) {
+      if (corpo.pin) guardarSenha(corpo.pin);
+      dados = await (await api("/api/ajustes")).json();
+      preencherTela();
+    }
+  } catch (e) { mostrarMsg(e.message, "erro"); }
+  $("salvar").disabled = false;
+}
+
+async function ouvir() {
+  const botao = $("ouvir");
+  botao.disabled = true; botao.textContent = "Gerando…";
+  try {
+    const r = await api("/api/amostra", { method: "POST", body: vozDaTela() });
+    if (!r.ok) { mostrarMsg((await r.json()).mensagem, "erro"); }
+    else {
+      const player = $("player");
+      player.src = URL.createObjectURL(await r.blob());
+      await player.play();
+    }
+  } catch (e) { mostrarMsg("Não consegui gerar a amostra.", "erro"); }
+  botao.disabled = false; botao.textContent = "▶ Ouvir aqui";
+}
+
+async function testar() {
+  const botao = $("testar");
+  botao.disabled = true;
+  try {
+    const r = await api("/api/testar-som", { method: "POST", body: vozDaTela() });
+    const d = await r.json();
+    mostrarMsg(d.mensagem + (d.ok ? " (a saída escolhida só vale depois de salvar)" : ""), d.ok ? "ok" : "erro");
+  } catch (e) { mostrarMsg("Não consegui tocar o teste.", "erro"); }
+  botao.disabled = false;
+}
+
+$("entrar").onclick = () => { guardarSenha($("senha").value); carregar(); };
+$("senha").addEventListener("keydown", (ev) => { if (ev.key === "Enter") $("entrar").click(); });
+$("add-local").onclick = () =>
+  $("locais").appendChild(linhaLocal({ nome: "", preposicao: "ao", numerado: false, quantidade: 0 }));
+$("add-chamada").onclick = () => {
+  if (document.querySelectorAll("#chamadas .chamada").length >= dados.limite_chamadas) {
+    mostrarMsg(`Máximo de ${dados.limite_chamadas} chamadas.`, "erro"); return;
+  }
+  const nova = linhaChamada({ id: "", rotulo: "", modelo: "aviso", ativo: true, frase: dados.frases_exemplo.aviso });
+  $("chamadas").appendChild(nova);
+  nova.querySelector(".c-rotulo").focus();
+};
+$("volume").oninput = () => $("volume-valor").textContent = $("volume").value + "%";
+$("ganho_voz").oninput = () => $("ganho-valor").textContent = rotuloGanho($("ganho_voz").value);
+$("add-programado").onclick = () => {
+  if (document.querySelectorAll("#programados .programado").length >= dados.limite_agendamentos) {
+    mostrarMsg(`Máximo de ${dados.limite_agendamentos} áudios programados.`, "erro"); return;
+  }
+  const novo = linhaProgramado({ ativo: true, dias: [0, 1, 2, 3, 4, 5, 6] });
+  $("programados").appendChild(novo);
+  novo.querySelector(".p-nome").focus();
+};
+$("velocidade").oninput = () => $("vel-valor").textContent = rotuloVelocidade($("velocidade").value);
+$("motor_voz").onchange = () => {
+  $("azure").classList.toggle("oculto", $("motor_voz").value !== "azure");
+  carregarVozes($("voz").value);
+};
+$("pin").oninput = () => { novoPin = $("pin").value || null; };
+$("remover-pin").onclick = () => { novoPin = ""; mostrarMsg("A senha será removida ao salvar."); };
+$("ouvir").onclick = ouvir;
+$("testar").onclick = testar;
+$("salvar").onclick = salvar;
+$("encerrar").onclick = async () => {
+  if (!confirm("Encerrar o Soundpad? As chamadas param até ele ser aberto de novo.")) return;
+  try { await api("/api/encerrar", { method: "POST" }); } catch (e) {}
+  document.body.innerHTML = "<main><h1>Soundpad encerrado</h1><p class='sub'>Abra pelo atalho da área de trabalho para ligar de novo.</p></main>";
+};
+carregar();
+</script>
+</body>
+</html>
