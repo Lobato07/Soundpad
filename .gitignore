@@ -1,0 +1,14 @@
+# Ambiente e construção
+.venv*/
+build/
+dist/
+__pycache__/
+*.spec
+instalador/saida/
+
+# Dados locais de cada instalação
+config.json
+config.tmp
+audios/
+gravacoes/
+soundpad.log*

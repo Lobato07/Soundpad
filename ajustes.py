@@ -38,6 +38,11 @@ ARQUIVO_CONFIG = PASTA_DADOS / "config.json"
 PASTA_CACHE = PASTA_DADOS / "audios" / "cache"
 # Gravações próprias (opcional). Ex.: gravacoes/repositores_caixa_3.mp3
 PASTA_GRAVACOES = PASTA_DADOS / "gravacoes"
+# Áudios enviados pela página de Ajustes para tocar em horários marcados.
+PASTA_AGENDADOS = PASTA_DADOS / "audios" / "programados"
+EXTENSOES_AGENDADOS = (".mp3", ".wav", ".ogg", ".flac")
+LIMITE_AGENDAMENTOS = 50
+DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]  # 0 = segunda (como no Python)
 
 PREPOSICOES = ["ao", "à", "no", "na"]
 LIMITE_QUANTIDADE = 999
@@ -85,6 +90,14 @@ PADRAO = {
     ],
     "dispositivo_audio": "",
     "volume": 1.0,
+    # Reforço só da voz das chamadas (1.0 = sem reforço). A voz sai mais baixa
+    # que a campainha e a música, então já vem bem reforçada.
+    "ganho_voz": 2.5,
+    # Áudios que tocam sozinhos em horários marcados.
+    # {"id", "nome", "frase" (a voz fala; pode ficar vazia),
+    #  "arquivo" (em audios/programados; toca antes da voz; pode ficar vazio),
+    #  "horario" "HH:MM", "dias" [0..6, 0 = segunda], "ativo", "campainha"}
+    "agendamentos": [],
     # edge  = vozes neurais gratuitas da Microsoft (serviço não oficial)
     # azure = Azure Speech, oficial e pago por uso (precisa de chave)
     "motor_voz": "edge",
@@ -241,6 +254,39 @@ def validar(novo: dict, atual: dict) -> dict:
         cfg["dispositivo_audio"] = str(novo["dispositivo_audio"] or "")
     if "volume" in novo:
         cfg["volume"] = min(1.0, max(0.05, float(novo["volume"])))
+    if "ganho_voz" in novo:
+        cfg["ganho_voz"] = min(4.0, max(1.0, float(novo["ganho_voz"])))
+
+    if "agendamentos" in novo:
+        agendamentos, ids = [], set()
+        for a in novo["agendamentos"]:
+            nome = _texto(a.get("nome"), "o nome do áudio programado", 60)
+            frase = _texto(a.get("frase"), f"a frase de {nome}", 400, vazio_ok=True)
+            arquivo = Path(str(a.get("arquivo") or "")).name
+            if arquivo and not (PASTA_AGENDADOS / arquivo).is_file():
+                raise AjusteInvalido(f"{nome}: o arquivo de áudio sumiu. Escolha de novo.")
+            if not arquivo and not frase:
+                raise AjusteInvalido(f"{nome}: escreva a frase da voz ou escolha um arquivo de áudio.")
+            horario = str(a.get("horario") or "").strip()
+            if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", horario):
+                raise AjusteInvalido(f"{nome}: horário inválido.")
+            try:
+                dias = sorted({int(d) for d in a.get("dias") or []})
+            except (TypeError, ValueError):
+                raise AjusteInvalido(f"{nome}: dias inválidos.")
+            if not dias or any(not 0 <= d <= 6 for d in dias):
+                raise AjusteInvalido(f"{nome}: marque pelo menos um dia da semana.")
+            ident = re.sub(r"[^a-z0-9]", "", str(a.get("id") or "").lower())[:16]
+            if not ident or ident in ids:
+                ident = os.urandom(5).hex()
+            ids.add(ident)
+            agendamentos.append({"id": ident, "nome": nome, "frase": frase, "arquivo": arquivo,
+                                 "horario": horario,
+                                 "dias": dias, "ativo": bool(a.get("ativo", True)),
+                                 "campainha": bool(a.get("campainha", False))})
+        if len(agendamentos) > LIMITE_AGENDAMENTOS:
+            raise AjusteInvalido(f"Máximo de {LIMITE_AGENDAMENTOS} áudios programados.")
+        cfg["agendamentos"] = agendamentos
 
     if "motor_voz" in novo:
         if novo["motor_voz"] not in ("edge", "azure"):

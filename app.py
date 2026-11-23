@@ -7,6 +7,7 @@ endereço deste PC no navegador e disparam as chamadas.
     python app.py --segundo-plano # inicia sem abrir o navegador (início com o Windows)
     python app.py --dispositivos  # lista as saídas de áudio
 """
+import math
 import os
 import queue
 import random
@@ -17,12 +18,17 @@ import threading
 import time
 import urllib.request
 import webbrowser
+from array import array
+from datetime import datetime
 from pathlib import Path
 
 import ajustes
 from ajustes import (
     EMPACOTADO,
+    EXTENSOES_AGENDADOS,
     NOME_PRODUTO,
+    PASTA_AGENDADOS,
+    PASTA_CACHE,
     PASTA_DADOS,
     PASTA_GRAVACOES,
     PASTA_PROGRAMA,
@@ -45,7 +51,9 @@ def _redirecionar_registro() -> None:
 _redirecionar_registro()
 
 from flask import Flask, abort, jsonify, request, send_file, send_from_directory  # noqa: E402
+from werkzeug.utils import secure_filename  # noqa: E402
 
+import musica  # noqa: E402
 import voz  # noqa: E402
 from voz import ErroVoz  # noqa: E402
 
@@ -204,6 +212,7 @@ def montar_chamada(dados: dict, config: dict | None = None) -> dict:
 # Arquivos de áudio
 # --------------------------------------------------------------------------
 EXTENSOES = (".mp3", ".wav", ".ogg")
+CAMPAINHA = PASTA_PROGRAMA / "CAMPAINHA.wav"  # toca antes de toda chamada
 
 
 def gravacoes(prefixo: str) -> list[Path]:
@@ -273,8 +282,19 @@ def pre_gerar() -> None:
                 numeros = range(1, min(d["quantidade"], MAX_PRE_GERADOS) + 1) if d["numerado"] else [None]
                 pedidos += [{"tipo": c["id"], "destino": i, "numero": n} for n in numeros]
 
+    # Frases dos áudios programados primeiro: no horário já estão prontas, mesmo sem internet.
+    frases = [a["frase"] for a in config["agendamentos"] if a["ativo"] and a.get("frase")]
+
     def _trabalho():
         time.sleep(2)
+        for frase in frases:
+            if rodada != _rodada_pre_geracao:
+                return
+            try:
+                voz.audio(frase, config)
+            except ErroVoz as e:
+                print(f"[aviso] Pré-geração dos áudios programados interrompida: {e}")
+                break
         for pedido in pedidos:
             if rodada != _rodada_pre_geracao:
                 return  # os ajustes mudaram; começa de novo com os novos
@@ -296,7 +316,7 @@ class Tocador:
     """Toca as chamadas uma de cada vez, em ordem, sem cortar a anterior."""
 
     def __init__(self) -> None:
-        self.fila: "queue.Queue[tuple[str, Path]]" = queue.Queue()
+        self.fila: "queue.Queue[tuple[str, Path, bool, bool, Path | None]]" = queue.Queue()
         self.chaves_pendentes: set[str] = set()
         self.tocando: str | None = None
         self.erro: str | None = None
@@ -309,12 +329,15 @@ class Tocador:
         with self.lock:
             return chave in self.chaves_pendentes
 
-    def adicionar(self, chave: str, arquivo: Path) -> bool:
+    def adicionar(self, chave: str, arquivo: Path, campainha: bool = True,
+                  reforcar: bool = False, antes: Path | None = None) -> bool:
+        """Ordem: campainha (se marcada) -> antes (se houver) -> arquivo.
+        reforcar: aumenta o volume do arquivo (a voz)."""
         with self.lock:
             if chave in self.chaves_pendentes:
                 return False
             self.chaves_pendentes.add(chave)
-        self.fila.put((chave, arquivo))
+        self.fila.put((chave, arquivo, campainha, reforcar, antes))
         return True
 
     def parar(self) -> None:
@@ -348,6 +371,58 @@ class Tocador:
             pg.mixer.init()
         return pg
 
+    def _tocar(self, pygame, arquivo: Path) -> bool:
+        """Toca um arquivo até o fim. Devolve False se foi interrompido."""
+        pygame.mixer.music.set_volume(float(cfg()["volume"]))
+        pygame.mixer.music.load(str(arquivo))
+        pygame.mixer.music.play()
+        completo = True
+        while pygame.mixer.music.get_busy():
+            if self.parar_agora.is_set():
+                pygame.mixer.music.stop()
+                completo = False
+                break
+            time.sleep(0.05)
+        pygame.mixer.music.unload()
+        return completo
+
+    def _tocar_som(self, som) -> bool:
+        """Toca um pygame.mixer.Sound já carregado (a voz reforçada)."""
+        som.set_volume(float(cfg()["volume"]))
+        canal = som.play()
+        while canal is not None and canal.get_busy():
+            if self.parar_agora.is_set():
+                canal.stop()
+                return False
+            time.sleep(0.05)
+        return True
+
+    @staticmethod
+    def _reforcar(pygame, arquivo: Path, ganho: float):
+        """Deixa a voz mais alta: iguala o pico e aplica o ganho com um limitador
+        suave (o que passaria do máximo é arredondado em vez de estourar)."""
+        if ganho <= 1.0:
+            return None
+        _, tamanho, _ = pygame.mixer.get_init()
+        if tamanho != -16:
+            return None  # formato inesperado: toca sem reforço
+        amostras = array("h")
+        amostras.frombytes(pygame.mixer.Sound(str(arquivo)).get_raw())
+        if not amostras:
+            return None
+        pico = max(max(amostras), -min(amostras)) or 1
+        fator = ganho * 0.95 * 32767 / pico
+        joelho = 0.6  # abaixo disto o som passa sem alteração
+        tabela = [0] * 65536  # índice negativo = amostra negativa
+        for s in range(-32768, 32768):
+            x = s * fator / 32768
+            m = abs(x)
+            if m > joelho:
+                m = joelho + (1 - joelho) * math.tanh((m - joelho) / (1 - joelho))
+            tabela[s] = int(math.copysign(m, x) * 32000)
+        saida = array("h", [tabela[s] for s in amostras])
+        return pygame.mixer.Sound(buffer=saida.tobytes())
+
     def _loop(self) -> None:
         pygame = None
         try:
@@ -355,7 +430,7 @@ class Tocador:
         except Exception as e:
             print(f"[aviso] Saída de áudio ainda não disponível: {type(e).__name__}: {e}")
         while True:
-            chave, arquivo = self.fila.get()
+            chave, arquivo, campainha, reforcar, antes = self.fila.get()
             try:
                 if pygame is None or self.reiniciar_saida.is_set():
                     self.reiniciar_saida.clear()
@@ -364,15 +439,34 @@ class Tocador:
                     self.tocando = chave
                     self.erro = None
                 self.parar_agora.clear()
-                pygame.mixer.music.set_volume(float(cfg()["volume"]))
-                pygame.mixer.music.load(str(arquivo))
-                pygame.mixer.music.play()
-                while pygame.mixer.music.get_busy():
-                    if self.parar_agora.is_set():
-                        pygame.mixer.music.stop()
-                        break
-                    time.sleep(0.05)
-                pygame.mixer.music.unload()
+                # O reforço leva ~1 s; é feito enquanto a campainha toca.
+                reforco: dict = {}
+
+                def _preparar_reforco():
+                    try:
+                        reforco["som"] = self._reforcar(pygame, arquivo, float(cfg()["ganho_voz"]))
+                    except Exception as e:
+                        print(f"[aviso] Sem reforço na voz: {type(e).__name__}: {e}")
+
+                preparo = threading.Thread(target=_preparar_reforco, daemon=True) if reforcar else None
+                if preparo:
+                    preparo.start()
+                if musica.pausar():
+                    time.sleep(0.3)  # espera a música silenciar
+                if campainha and CAMPAINHA.exists():
+                    if self._tocar(pygame, CAMPAINHA):
+                        time.sleep(0.2)
+                if antes is not None and not self.parar_agora.is_set():
+                    if self._tocar(pygame, antes):
+                        time.sleep(0.3)
+                if preparo:
+                    preparo.join()
+                som = reforco.get("som")
+                if not self.parar_agora.is_set():
+                    if som is not None:
+                        self._tocar_som(som)
+                    else:
+                        self._tocar(pygame, arquivo)
                 time.sleep(0.4)
             except Exception as e:
                 with self.lock:
@@ -383,6 +477,64 @@ class Tocador:
                 with self.lock:
                     self.chaves_pendentes.discard(chave)
                     self.tocando = None
+                if self.fila.empty():
+                    musica.retomar()  # acabaram as chamadas: a música volta
+
+
+# --------------------------------------------------------------------------
+# Áudios programados (tocam sozinhos em horários marcados)
+# --------------------------------------------------------------------------
+def agendador() -> None:
+    disparados: set[tuple[str, str]] = set()  # (id, "AAAA-MM-DD HH:MM") já tocados
+    while True:
+        agora = datetime.now()
+        minuto = agora.strftime("%Y-%m-%d %H:%M")
+        disparados = {d for d in disparados if d[1] == minuto}
+        for a in cfg()["agendamentos"]:
+            if (not a["ativo"] or a["horario"] != agora.strftime("%H:%M")
+                    or agora.weekday() not in a["dias"] or (a["id"], minuto) in disparados):
+                continue
+            disparados.add((a["id"], minuto))
+            print(f"[programado] {minuto} tocando '{a['nome']}'")
+            # Em outra linha de execução: gerar a voz pode levar uns segundos.
+            threading.Thread(target=tocar_programado, args=(a,), daemon=True).start()
+        time.sleep(5)
+
+
+def tocar_programado(a: dict) -> str:
+    """Põe na fila: campainha (opcional) -> arquivo escolhido (opcional) -> voz da frase.
+    Devolve uma mensagem de erro, ou "" se deu certo."""
+    chave = f"programado: {a.get('nome') or 'aviso'}"
+    arquivo = PASTA_AGENDADOS / a["arquivo"] if a.get("arquivo") else None
+    if arquivo is not None and not arquivo.is_file():
+        print(f"[aviso] Áudio programado '{chave}' sem arquivo: {arquivo}")
+        arquivo = None
+    fala = None
+    if a.get("frase"):
+        try:
+            fala = voz.audio(a["frase"], cfg())
+        except ErroVoz as e:
+            print(f"[aviso] '{chave}': não consegui gerar a voz ({e})")
+            if arquivo is None:
+                return str(e)
+    if fala is not None:
+        tocador.adicionar(chave, fala, campainha=a.get("campainha", False), reforcar=True, antes=arquivo)
+    elif arquivo is not None:
+        tocador.adicionar(chave, arquivo, campainha=a.get("campainha", False))
+    else:
+        return "Escreva a frase da voz ou escolha um arquivo de áudio."
+    return ""
+
+
+def limpar_programados() -> None:
+    """Apaga os arquivos enviados que nenhum áudio programado usa mais."""
+    usados = {a["arquivo"] for a in cfg()["agendamentos"]}
+    for arquivo in PASTA_AGENDADOS.glob("*"):
+        if arquivo.is_file() and arquivo.name not in usados:
+            try:
+                arquivo.unlink()
+            except OSError:
+                pass
 
 
 # --------------------------------------------------------------------------
@@ -411,6 +563,7 @@ def enderecos_ip() -> list[str]:
 app = Flask(__name__, static_folder=str(PASTA_PROGRAMA / "static"), static_url_path="/static")
 app.json.ensure_ascii = False
 app.json.sort_keys = False  # mantém a ordem das chamadas e dos locais
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # áudios programados de até 100 MB
 tocador = Tocador()
 
 
@@ -503,7 +656,7 @@ def api_chamar():
         arquivo = arquivo_da_chamada(chamada)
     except ErroChamada as e:
         return jsonify({"ok": False, "mensagem": str(e)}), 400
-    if not tocador.adicionar(chave, arquivo):
+    if not tocador.adicionar(chave, arquivo, reforcar=arquivo.parent == PASTA_CACHE):
         return jsonify({"ok": True, "mensagem": f"'{chave}' já está tocando ou na fila."})
     return jsonify({"ok": True, "mensagem": f"Chamando {chave}…"})
 
@@ -530,6 +683,9 @@ def api_ajustes_ler():
         "modelos": ajustes.MODELOS,
         "frases_exemplo": ajustes.FRASES_EXEMPLO,
         "limite_chamadas": ajustes.LIMITE_CHAMADAS,
+        "dias_semana": ajustes.DIAS_SEMANA,
+        "extensoes_programados": list(EXTENSOES_AGENDADOS),
+        "limite_agendamentos": ajustes.LIMITE_AGENDAMENTOS,
     })
 
 
@@ -542,6 +698,7 @@ def api_ajustes_salvar():
     except (AjusteInvalido, ValueError, TypeError) as e:
         return jsonify({"ok": False, "mensagem": str(e) or "Valor inválido."}), 400
     trocar_config(novo)
+    limpar_programados()
     if novo["dispositivo_audio"] != antes["dispositivo_audio"]:
         tocador.reiniciar_saida.set()
     pre_gerar()
@@ -612,8 +769,51 @@ def api_testar_som():
         arquivo = voz.audio(_frase_de_teste(config), config, config["voz"])
     except ErroVoz as e:
         return jsonify({"ok": False, "mensagem": str(e)}), 400
-    tocador.adicionar("teste de som", arquivo)
+    tocador.adicionar("teste de som", arquivo, reforcar=True)
     return jsonify({"ok": True, "mensagem": "Tocando o teste nas caixas de som…"})
+
+
+@app.post("/api/programados/enviar")
+def api_programados_enviar():
+    """Recebe um áudio escolhido no navegador e guarda neste computador."""
+    exigir_admin()
+    enviado = request.files.get("arquivo")
+    if not enviado or not enviado.filename:
+        return jsonify({"ok": False, "mensagem": "Escolha um arquivo de áudio."}), 400
+    original = Path(enviado.filename).name
+    extensao = Path(original).suffix.lower()
+    if extensao not in EXTENSOES_AGENDADOS:
+        formatos = ", ".join(e.lstrip(".").upper() for e in EXTENSOES_AGENDADOS)
+        return jsonify({"ok": False, "mensagem": f"Formato não aceito. Use {formatos}."}), 400
+    base = secure_filename(Path(original).stem)[:60] or "audio"
+    PASTA_AGENDADOS.mkdir(parents=True, exist_ok=True)
+    destino, n = PASTA_AGENDADOS / f"{base}{extensao}", 2
+    while destino.exists():
+        destino, n = PASTA_AGENDADOS / f"{base}_{n}{extensao}", n + 1
+    enviado.save(destino)
+    try:
+        import pygame
+
+        if pygame.mixer.get_init():
+            pygame.mixer.Sound(str(destino))  # confere se dá para tocar
+    except Exception:
+        destino.unlink(missing_ok=True)
+        return jsonify({"ok": False, "mensagem": "Não consegui abrir esse áudio. Tente outro arquivo."}), 400
+    return jsonify({"ok": True, "arquivo": destino.name, "nome": Path(original).stem[:60]})
+
+
+@app.post("/api/programados/tocar")
+def api_programados_tocar():
+    """Botão 'Tocar agora' de um áudio programado."""
+    exigir_admin()
+    dados = request.get_json(silent=True) or {}
+    nome = " ".join(str(dados.get("nome") or "aviso").split())[:60]
+    frase = " ".join(str(dados.get("frase") or "").split())[:400]
+    erro = tocar_programado({"nome": nome, "frase": frase, "campainha": bool(dados.get("campainha")),
+                             "arquivo": Path(str(dados.get("arquivo") or "")).name})
+    if erro:
+        return jsonify({"ok": False, "mensagem": erro}), 400
+    return jsonify({"ok": True, "mensagem": f"Tocando '{nome}' nas caixas de som…"})
 
 
 @app.post("/api/encerrar")
@@ -684,6 +884,7 @@ def main() -> None:
     if abrir_navegador:
         threading.Timer(1.2, lambda: webbrowser.open(pagina)).start()
     pre_gerar()
+    threading.Thread(target=agendador, daemon=True).start()
 
     from werkzeug.serving import run_simple
 

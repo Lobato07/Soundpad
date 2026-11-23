@@ -1,5 +1,9 @@
 flask>=3.0
 pygame>=2.5
 edge-tts>=6.1
+# Pausar o Spotify (ou outra música) durante as chamadas:
+winrt-runtime>=2.0; sys_platform == "win32"
+winrt-Windows.Foundation>=2.0; sys_platform == "win32"
+winrt-Windows.Media.Control>=2.0; sys_platform == "win32"
 # Opcional, só para gerar falas sem internet (gerar_falas.py --motor offline):
 # pyttsx3>=2.90

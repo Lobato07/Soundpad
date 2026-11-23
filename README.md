@@ -7,7 +7,7 @@ sem instalar nada.
 
 ---
 
-## Instalação
+## Para o cliente: instalar
 
 1. No computador ligado ao som, dê dois cliques em **SoundpadSetup-2.0.exe** e avance.
    - Se aparecer "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo**.
@@ -25,6 +25,38 @@ firewall. Para o endereço não mudar, reserve o IP do computador no roteador.
 
 Os Ajustes abrem sem senha só no próprio computador do som. Para abrir de outro
 computador, crie uma senha em Ajustes → Acesso.
+
+---
+
+## Para você (quem vende): gerar o instalador
+
+No seu computador, com Python 3.13 (`py install 3.13`) e o
+[Inno Setup 6](https://jrsoftware.org/isdl.php) (`winget install JRSoftware.InnoSetup`):
+
+```
+instalador\construir.bat
+```
+
+Ele cria `instalador\saida\SoundpadSetup-2.0.exe`. É esse arquivo que vai para o
+cliente. O cliente não precisa de Python nem de nada além dele.
+
+Para lançar uma versão nova, mude `VERSAO` em `ajustes.py` e `Versao` em
+`instalador\soundpad.iss`, e rode `construir.bat` de novo. Instalar por cima
+mantém os ajustes do cliente.
+
+### Antes de vender
+
+- **Serviço de voz.** O padrão ("Microsoft Edge, gratuito") usa o serviço de
+  leitura em voz alta do navegador Edge, que a Microsoft não oferece oficialmente
+  para outros programas. Ele pode parar ou mudar sem aviso, e não há contrato de
+  uso comercial. Para vender com segurança, use o **Azure Speech** (mesmas vozes,
+  oficial, com camada gratuita mensal e depois pago por uso). Crie um recurso
+  "Speech" no portal do Azure e coloque a chave e a região nos Ajustes.
+- **Aviso do Windows.** Sem assinatura digital de código, o Windows mostra
+  "O Windows protegeu o computador" na instalação. Um certificado de assinatura
+  de código remove esse aviso.
+- **Ícone.** Confira se você tem direito de uso comercial da imagem do ícone
+  (`instalador\icone.ico` e `static\icone.png`), ou troque-a por uma própria.
 
 ---
 
